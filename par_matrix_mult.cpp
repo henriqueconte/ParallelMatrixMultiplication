@@ -1,21 +1,20 @@
 #include <stdio.h>
-#include <mpi.h>
 #include <algorithm>
+#include <mpi.h>
 #include <ctime>
 
-#define GRN   "\x1B[32m"
-#define RESET "\x1B[0m"
-#define CYN   "\x1B[36m"
-
+// Master process rank
 #define MASTER_PROCESS 0
 
+// Tags used to send message
 #define MASTER_TAG 0
 #define WORKER_TAG 1
 
-#define N 4
-#define MICRO 1000000
+// Error codes
+#define INVALID_PROCESSES 1
 
-#define NOT_ENOUGH_PROCESSES_NUM_ERROR 1
+// Matrix size
+#define N 4
 
 MPI_Status status;
 
@@ -23,14 +22,7 @@ int matrixA[N][N];
 int matrixB[N][N];
 int resultMatrix[N][N];
 
-void generateMatrixes(int matrix[N][N]) {
-	for(int i = 0; i < N; i ++){
-        for(int j = 0; j < N; j ++){
-          matrix[i][j] = std::rand() % 10;
-        }
-    }
-}
-
+// Prints matrix
 void showMatrix(int matrix[N][N]) {
 	printf("\n");
 	for (int i = 0; i < N; i++) {
@@ -41,6 +33,16 @@ void showMatrix(int matrix[N][N]) {
 	}
 }
 
+// Given a matrix, it will generate random values for all its fields
+void generateMatrixes(int matrix[N][N]) {
+	for(int i = 0; i < N; i ++){
+        for(int j = 0; j < N; j ++){
+          matrix[i][j] = std::rand() % 10;
+        }
+    }
+}
+
+// Multiplicates part of the matrix A and B
 void matrixMultiplication(int interval) {
     for (int k = 0; k < N; k ++) {
         for (int i = 0; i < interval; i ++) {
@@ -53,78 +55,133 @@ void matrixMultiplication(int interval) {
 
 int main(int argc, char *argv[]) {
 	int communicator_size, process_rank;
-	int offset;
-	int rows_num;
-	int workers_num;
-	int remainder;
-	int intervalLength;
-	int message_tag;
 
+    // Offset to know which part of the matrix the worker will use
+	int rowsOffset;
+
+    // The amount of rows each worker will work with.
+	int workingRows;
+
+    // The amount of workers 
+	int workersCount;
+
+    // We will try to divide the amount of rows equally between the workers, but we might have a few rows left.
+    // Therefore, we keep track of the remainder to split extra rows among the workers.
+	int remainder;
+
+    // The minimum amount of rows that each worker should work with.
+	int intervalLength;
+
+    // Initializes MPI environment, defining number of processes available and their ranks.
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &communicator_size);
 	MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
 
-    // TODO: Create case where we run in only one process
+    // If we don't have more than one process available, we abort the execution
 	if (communicator_size < 1) {
-		MPI_Abort(MPI_COMM_WORLD, NOT_ENOUGH_PROCESSES_NUM_ERROR);
-	} else if (communicator_size == 1) {
-        // TODO: Calculate timing for one process execution.
-        matrixMultiplication(N);
-        return 0;
-    } 
+		MPI_Abort(MPI_COMM_WORLD, INVALID_PROCESSES);
+	} else if (communicator_size == 1) { // If we only have one process, we run a sequential execution.
+        long long int start = clock();
 
-    workers_num = communicator_size - 1;
-    intervalLength = N / workers_num;
-    remainder = N % workers_num;
-
-	if (process_rank == MASTER_PROCESS) {
-		printf("%sGenerating matrixes%s\n", CYN, RESET);
-		
-		printf("\n%sGenerating matrix %sA%s with size %s%dx%d",CYN, GRN, CYN, RESET, N, N);
+		printf("\nCreating matrix A, size %dx%d", N, N);
 		generateMatrixes(matrixA);
 		showMatrix(matrixA);
 
-		printf("\n%sGenerating matrix %sB%s with size %s%dx%d",CYN, GRN, CYN, RESET, N, N);
+		printf("\nCreating matrix B, size %dx%d", N, N);
 		generateMatrixes(matrixB);
 		showMatrix(matrixB);
 
-		printf("\nStarting multiplication ... \n");
-		long long int start = clock();
-		offset = 0;
+        printf("\nMultiplicating\n");
 
-		for (int process_id = 1; process_id <= workers_num; process_id++) {
-            rows_num = process_id <= remainder ? intervalLength + 1 : intervalLength;
-            MPI_Send(&rows_num, 1, MPI_INT, process_id, MASTER_TAG, MPI_COMM_WORLD);
-            MPI_Send(&matrixA[offset], rows_num * N, MPI_INT, process_id, MASTER_TAG, MPI_COMM_WORLD);
-            offset += rows_num;
-		}
-        MPI_Bcast(&matrixB, N * N, MPI_INT, 0, MPI_COMM_WORLD);
+        matrixMultiplication(N);
 
-        offset = 0;
-		for (int process_id = 1; process_id <= workers_num; process_id ++) {
-            MPI_Recv(&rows_num, 1, MPI_INT, process_id, WORKER_TAG, MPI_COMM_WORLD, &status);
-            MPI_Recv(&resultMatrix[offset], rows_num * N, MPI_INT, process_id, WORKER_TAG, MPI_COMM_WORLD, &status);
-            offset += rows_num;
-		}
-		printf("\n%sResult %sA*B%s", CYN, GRN, RESET);
+        printf("\nResult:");
 		showMatrix(resultMatrix);
-		long long int end = clock();
-		double diff = (double)((end - start) / (1.0 * MICRO));
+
+        long long int end = clock();
+		double diff = (double)((end - start) / (1.0 * 1000000));
 
 		printf("\n%dx%d - %f seconds\n", N, N, diff);
-	} 
-	
-	if (process_rank != MASTER_PROCESS) {
-		MPI_Recv(&rows_num, 1, MPI_INT, MASTER_PROCESS, MASTER_TAG, MPI_COMM_WORLD, &status);
-		MPI_Recv(&matrixA, rows_num * N, MPI_INT, MASTER_PROCESS, MASTER_TAG, MPI_COMM_WORLD, &status);
+        
+        MPI_Finalize();
+        return 0;
+    } 
+
+    // One process will be the master; the others will be workers
+    workersCount = communicator_size - 1;
+
+    // The interval that each worker will process
+    intervalLength = N / workersCount;
+
+    // The remaining rows that will be distributed between the workers
+    remainder = N % workersCount;
+
+    // Master process code
+	if (process_rank == MASTER_PROCESS) {
+
+        // Generates matrix A
+		printf("\nCreating matrix A, size %dx%d", N, N);
+		generateMatrixes(matrixA);
+		showMatrix(matrixA);
+
+        // Generates matrix B
+		printf("\nCreating matrix B, size %dx%d", N, N);
+		generateMatrixes(matrixB);
+		showMatrix(matrixB);
+
+		printf("\nMultiplicating\n");
+        
+        // Starts timer
+		long long int start = clock();
+
+        // For each worker process, send them the amount of rows they have to process and the part
+        // of the matrix A they will use.
+		rowsOffset = 0;
+		for (int process_id = 1; process_id <= workersCount; process_id++) {
+            workingRows = process_id <= remainder ? intervalLength + 1 : intervalLength;
+            MPI_Send(&workingRows, 1, MPI_INT, process_id, MASTER_TAG, MPI_COMM_WORLD);
+            MPI_Send(&matrixA[rowsOffset], workingRows * N, MPI_INT, process_id, MASTER_TAG, MPI_COMM_WORLD);
+            rowsOffset += workingRows;
+		}
+
+        // Broadcasts the whole matrix B to all workers.
         MPI_Bcast(&matrixB, N * N, MPI_INT, 0, MPI_COMM_WORLD);
 
-        matrixMultiplication(rows_num);
+        // Receives the multiplication result of each matrix part and assigns it to the resulting matrix
+        rowsOffset = 0;
+		for (int process_id = 1; process_id <= workersCount; process_id ++) {
+            MPI_Recv(&workingRows, 1, MPI_INT, process_id, WORKER_TAG, MPI_COMM_WORLD, &status);
+            MPI_Recv(&resultMatrix[rowsOffset], workingRows * N, MPI_INT, process_id, WORKER_TAG, MPI_COMM_WORLD, &status);
+            rowsOffset += workingRows;
+		}
 
-		MPI_Send(&rows_num, 1, MPI_INT, MASTER_PROCESS, WORKER_TAG, MPI_COMM_WORLD);
-		MPI_Send(&resultMatrix, rows_num * N, MPI_INT, MASTER_PROCESS, WORKER_TAG, MPI_COMM_WORLD);
-	}
+        // Prints resulting matrix
+		printf("\nResult:");
+		showMatrix(resultMatrix);
 
+        // Finishes timer and prints execution length
+		long long int end = clock();
+		double diff = (double)((end - start) / (1.0 * 1000000));
+		printf("\n%dx%d - %f seconds\n", N, N, diff);
+
+	} else { // Worker process code
+
+        // Receives the amount of rows it should process and the part of the matrixA it will work with.
+		MPI_Recv(&workingRows, 1, MPI_INT, MASTER_PROCESS, MASTER_TAG, MPI_COMM_WORLD, &status);
+		MPI_Recv(&matrixA, workingRows * N, MPI_INT, MASTER_PROCESS, MASTER_TAG, MPI_COMM_WORLD, &status);
+
+        // Receives the matrixB broadcast. The broadcast method is the same to both send and receive data.
+        MPI_Bcast(&matrixB, N * N, MPI_INT, 0, MPI_COMM_WORLD);
+
+        // Multiplies the part of the matrix
+        matrixMultiplication(workingRows);
+
+        // Sends the amount of rows it worked with and the resulting matrix
+		MPI_Send(&workingRows, 1, MPI_INT, MASTER_PROCESS, WORKER_TAG, MPI_COMM_WORLD);
+		MPI_Send(&resultMatrix, workingRows * N, MPI_INT, MASTER_PROCESS, WORKER_TAG, MPI_COMM_WORLD);
+    }
+
+    // Finalizes the MPI execution
 	MPI_Finalize();
 	return 0;
 }
