@@ -83,16 +83,19 @@ int main(int argc, char *argv[]) {
 	} else if (communicator_size == 1) { // If we only have one process, we run a sequential execution.
         long long int start = clock();
 
+        // Generates matrix A
 		printf("\nCreating matrix A, size %dx%d", N, N);
 		generateMatrixes(matrixA);
 		showMatrix(matrixA);
 
+        // Generates matrix B
 		printf("\nCreating matrix B, size %dx%d", N, N);
 		generateMatrixes(matrixB);
 		showMatrix(matrixB);
 
         printf("\nMultiplicating\n");
 
+        // Executes multiplication of the whole matrixA and B.
         matrixMultiplication(N);
 
         printf("\nResult:");
