@@ -14,7 +14,7 @@
 #define INVALID_PROCESSES 1
 
 // Matrix size
-#define N 4
+#define N 50
 
 MPI_Status status;
 
@@ -34,7 +34,7 @@ void showMatrix(int matrix[N][N]) {
 }
 
 // Given a matrix, it will generate random values for all its fields
-void generateMatrixes(int matrix[N][N]) {
+void generatematrices(int matrix[N][N]) {
 	for(int i = 0; i < N; i ++){
         for(int j = 0; j < N; j ++){
           matrix[i][j] = std::rand() % 10;
@@ -85,12 +85,12 @@ int main(int argc, char *argv[]) {
 
         // Generates matrix A
 		printf("\nCreating matrix A, size %dx%d", N, N);
-		generateMatrixes(matrixA);
+		generatematrices(matrixA);
 		showMatrix(matrixA);
 
         // Generates matrix B
 		printf("\nCreating matrix B, size %dx%d", N, N);
-		generateMatrixes(matrixB);
+		generatematrices(matrixB);
 		showMatrix(matrixB);
 
         printf("\nMultiplicating\n");
@@ -124,12 +124,12 @@ int main(int argc, char *argv[]) {
 
         // Generates matrix A
 		printf("\nCreating matrix A, size %dx%d", N, N);
-		generateMatrixes(matrixA);
+		generatematrices(matrixA);
 		showMatrix(matrixA);
 
         // Generates matrix B
 		printf("\nCreating matrix B, size %dx%d", N, N);
-		generateMatrixes(matrixB);
+		generatematrices(matrixB);
 		showMatrix(matrixB);
 
 		printf("\nMultiplicating\n");

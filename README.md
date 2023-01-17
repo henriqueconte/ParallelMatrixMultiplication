@@ -1,10 +1,19 @@
 # ParallelMatrixMultiplication
-Parallel matrix multiplication using MPI.
 
-How to compile: `mpicxx par_matrix_mult.cpp -o par_matrix_mult` 
+Parallel matrix multiplication using C++ with Open MPI.
 
-How to run: `mpirun -np 2 ./par_matrix_mult`
+Author: Henrique Figueiredo Conte
 
--np = Number of processes. 
+### How to run
+
+Compiling: `mpicxx par_matrix_mult.cpp -o par_matrix_mult`  
+
+Running example: `mpirun -np 4 ./par_matrix_mult`  
+
+-np = Number of processes.
+
+### Report
+
+The code is available on the "par_matrix_mult.cpp" file, and the report is available on the "Report.pdf" file.
 
 
